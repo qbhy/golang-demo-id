@@ -1,10 +1,12 @@
 package actions
 
+import "id/core/contracts"
+
 type IncrAction struct {
 	Action
 }
 
-func (action IncrAction) Handle(data DataMap) {
+func (action IncrAction) Handle(data contracts.DataMap) {
 	num, ok := data[action.Key]
 
 	if ok {

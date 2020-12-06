@@ -1,10 +1,12 @@
 package actions
 
+import "id/core/contracts"
+
 type GetAction struct {
 	Action
 }
 
-func (action GetAction) Handle(data DataMap) {
+func (action GetAction) Handle(data contracts.DataMap) {
 	num, ok := data[action.Key]
 
 	if ok {

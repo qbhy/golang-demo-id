@@ -2,15 +2,16 @@ package core
 
 import (
 	"id/core/actions"
+	"id/core/contracts"
 	"sync"
 )
 
 // 定义数据存储中心
 type DataCenter struct {
-	actionChan  chan actions.ActionAbility
-	data        actions.DataMap
-	savable     string                     // 持久化方案
-	savableChan chan actions.ActionAbility // 通知持久化的通道
+	actionChan  chan contracts.ActionAbility
+	data        contracts.DataMap
+	savable     string                       // 持久化方案
+	savableChan chan contracts.ActionAbility // 通知持久化的通道
 	savableLock *sync.RWMutex
 }
 
@@ -43,8 +44,8 @@ func (dc DataCenter) Incr(key string, num int) int {
 // new 一个数据中心
 func NewData() DataCenter {
 	return DataCenter{
-		actionChan:  make(chan actions.ActionAbility),
-		data:        actions.DataMap{},
+		actionChan:  make(chan contracts.ActionAbility),
+		data:        contracts.DataMap{},
 		savable:     "", // 默认不开启持久化
 		savableChan: nil,
 		savableLock: new(sync.RWMutex),
@@ -82,7 +83,7 @@ func (data DataCenter) Start() {
 func (data *DataCenter) Savable(method string) {
 
 	data.savable = method
-	data.savableChan = make(chan actions.ActionAbility)
+	data.savableChan = make(chan contracts.ActionAbility)
 
 	// 开启协程监听持久化通道
 	go func() {

@@ -1,10 +1,12 @@
 package actions
 
+import "id/core/contracts"
+
 type DeleteAction struct {
 	Action
 }
 
-func (action DeleteAction) Handle(data DataMap) {
+func (action DeleteAction) Handle(data contracts.DataMap) {
 	delete(data, action.Key)
 	action.ReadChan <- true
 }
