@@ -9,6 +9,11 @@ import (
 
 var data core.DataCenter
 
+/**
+	要实现高可用性，还得实现以下功能：
+	1. 主从复制
+	2. 支持集群架构，可以参考 redis 槽点设计
+ */
 func main() {
 	data = core.NewData()
 
