@@ -22,6 +22,14 @@ func (dc DataCenter) Set(key string, value int) bool {
 	return (<-action.ReadChan).(bool)
 }
 
+// 获取值
+func (dc DataCenter) Get(key string) int {
+	action := actions.NewAction(key, 0)
+
+	dc.actionChan <- actions.GetAction{Action: action} // 使用 get action
+	return (<-action.ReadChan).(int)
+}
+
 // 自增
 func (dc DataCenter) Incr(key string, num int) int {
 	action := actions.NewAction(key, num)
@@ -95,8 +103,8 @@ func (data *DataCenter) Savable(method string) {
 				*/
 			} else if method == "规则3" {
 				/**
-					规则3 略
-				 */
+				规则3 略
+				*/
 			}
 		}
 	}()
