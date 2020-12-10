@@ -17,7 +17,7 @@ func OpenFileOrCreate(path string) *os.File {
 		_ = os.Chmod(path, 0660)
 		return file
 	} else {
-		file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+		file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, os.ModeAppend)
 		if err != nil {
 			panic(err)
 		}

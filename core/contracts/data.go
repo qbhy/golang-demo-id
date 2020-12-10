@@ -12,4 +12,5 @@ type DataCenter interface {
 	Savable(savable Savable)                                   // 开启持久化
 	WriteLock() *sync.RWMutex                                  // 获取写锁
 	GetDataMap() *DataMap
+	SetRecovering(Recovering bool)
 }

@@ -13,6 +13,7 @@ type Data struct {
 	savable     contracts.Savable            // 持久化方案
 	savableChan chan contracts.CommandAction // 通知持久化的通道
 	Lock        *sync.RWMutex                // 写锁
+	Recovering  bool                         // 是否处于恢复中的状态
 	commands    map[string]contracts.ExecuteAble
 }
 
@@ -34,7 +35,13 @@ func (data *Data) Call(command string, key string, arg int) chan interface{} {
 	ability, ok := data.commands[command]
 
 	if ok {
-		ch := make(chan interface{})
+		ch := make(chan interface{}, 1)
+
+		if data.Recovering { // 恢复模式下直接执行即可
+			ability.Execute(data.data, key, arg, ch)
+			return nil
+		}
+
 		data.commandChan <- contracts.CommandAction{
 			Key:      key,
 			Arg:      arg,
@@ -92,6 +99,10 @@ func (data *Data) GetDataMap() *contracts.DataMap {
 	return &data.data
 }
 
+func (data *Data) SetRecovering(Recovering bool) {
+	data.Recovering = Recovering
+}
+
 /**
 开启持久化
 	原理：持久化原理就是将内存中的数据写到文件中
@@ -106,5 +117,10 @@ func (data *Data) Savable(savable contracts.Savable) {
 	data.savable = savable
 	data.savableChan = make(chan contracts.CommandAction)
 	data.savable.Init()
+
+	// 从持久化文件中恢复数据
+	data.savable.Recovery(data)
+
 	data.savable.Run(data.savableChan)
+
 }

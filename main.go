@@ -7,6 +7,7 @@ import (
 	"id/core/contracts"
 	"id/core/save/aof"
 	"id/core/save/rdb"
+	"id/core/save/remix"
 	"id/util"
 	"net/http"
 	"os"
@@ -24,27 +25,27 @@ func main() {
 
 	data = core.NewData()
 
+	aofInstance := &aof.Aof{
+		Path: os.Getenv("AOF_FILE_PATH"),
+		Type: os.Getenv("AOF_TYPE"),
+	}
+	rdbInstance := &rdb.Rdb{
+		Path: os.Getenv("RDB_FILE_PATH"),
+	}
+	remixInstance := &remix.Remix{
+		Path: os.Getenv("REMIX_FILE_PATH"),
+	}
+
 	// 开启持久化协程，开启使用 aof 持久化方案
-	savable := map[string]func() contracts.Savable{
-		contracts.AOF: func() contracts.Savable {
-			return &aof.Aof{
-				Path: os.Getenv("AOF_FILE_PATH"),
-				Type: os.Getenv("AOF_TYPE"),
-			}
-		},
-		contracts.RDB: func() contracts.Savable {
-			return rdb.Rdb{
-				Path: os.Getenv("AOF_FILE_PATH"),
-			}
-		},
-		contracts.REMIX: func() contracts.Savable {
-			return rdb.New()
-		},
+	savable := map[string]contracts.Savable{
+		contracts.AOF:   aofInstance,
+		contracts.RDB:   rdbInstance,
+		contracts.REMIX: remixInstance,
 	}
 
 	switch savableType := os.Getenv("SAVE_TYPE"); savableType {
 	case contracts.AOF, contracts.RDB, contracts.REMIX:
-		data.Savable(savable[savableType]())
+		data.Savable(savable[savableType])
 	}
 
 	// 开启操作管道协程

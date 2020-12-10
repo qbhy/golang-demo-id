@@ -1,4 +1,4 @@
-package rdb
+package remix
 
 import (
 	"bufio"
@@ -9,20 +9,16 @@ import (
 	"os"
 )
 
-type Rdb struct {
+type Remix struct {
 	Path string // 文件目录
 	file *os.File
 }
 
-func New() Rdb {
-	return Rdb{}
+func (remix Remix) Init() {
+	remix.file = util.OpenFileOrCreate(remix.Path)
 }
 
-func (rdb Rdb) Init() {
-	rdb.file = util.OpenFileOrCreate(rdb.Path)
-}
-
-func (rdb Rdb) Run(actionChan chan contracts.CommandAction) {
+func (remix Remix) Run(actionChan chan contracts.CommandAction) {
 	/**
 	0. 根据持久化规则判断是否满足持久化条件，若满足则往下执行
 	1. 使用读写锁锁住写操作
@@ -33,21 +29,21 @@ func (rdb Rdb) Run(actionChan chan contracts.CommandAction) {
 	// todo: 待实现
 }
 
-func (rdb Rdb) Save(data contracts.DataMap, action contracts.CommandAction) {
+func (remix Remix) Save(data contracts.DataMap, action contracts.CommandAction) {
 	content := ""
 	for key, value := range data {
 		content += fmt.Sprintf("%s,%d\n", key, value)
 	}
 
-	_, err := rdb.file.Write([]byte(content))
+	_, err := remix.file.Write([]byte(content))
 
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func (rdb *Rdb) Recovery(center contracts.DataCenter) {
-	br := bufio.NewReader(rdb.file)
+func (remix *Remix) Recovery(center contracts.DataCenter) {
+	br := bufio.NewReader(remix.file)
 	for {
 		a, _, c := br.ReadLine()
 		if c == io.EOF {

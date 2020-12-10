@@ -1,10 +1,13 @@
 package aof
 
 import (
+	"bufio"
 	"fmt"
 	"id/core/contracts"
 	"id/util"
+	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -74,4 +77,23 @@ func (aof *Aof) Save(data contracts.DataMap, action contracts.CommandAction) {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func (aof *Aof) Recovery(center contracts.DataCenter) {
+	br := bufio.NewReader(aof.file)
+	center.SetRecovering(true)
+	for {
+		line, _, c := br.ReadLine()
+
+		if c == io.EOF {
+			break
+		}
+
+
+		actionArr := strings.Split(string(line), ",")
+		if len(actionArr) == 3 { // 长度不对说明数据有问题
+			center.Call(actionArr[0], actionArr[1], util.StrToInt(actionArr[2]))
+		}
+	}
+	center.SetRecovering(false)
 }
