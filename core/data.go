@@ -1,73 +1,95 @@
 package core
 
 import (
-	"id/core/actions"
+	"id/core/commands"
 	"id/core/contracts"
 	"sync"
 )
 
 // 定义数据存储中心
-type DataCenter struct {
-	actionChan  chan contracts.ActionAbility
+type Data struct {
+	commandChan chan contracts.CommandAction
 	data        contracts.DataMap
-	savable     string                       // 持久化方案
-	savableChan chan contracts.ActionAbility // 通知持久化的通道
-	savableLock *sync.RWMutex
+	savable     contracts.Savable            // 持久化方案
+	savableChan chan contracts.CommandAction // 通知持久化的通道
+	Lock        *sync.RWMutex                // 写锁
+	commands    map[string]contracts.ExecuteAble
 }
 
-// 设置值
-func (dc DataCenter) Set(key string, value int) bool {
-	action := actions.NewAction(key, value)
+// 批量注册 Command
+func (data *Data) Commands(commands map[string]contracts.ExecuteAble) contracts.DataCenter {
+	data.commands = commands
 
-	dc.actionChan <- actions.SaveAction{Action: action} // 使用 save action
-	return (<-action.ReadChan).(bool)
+	return data
 }
 
-// 获取值
-func (dc DataCenter) Get(key string) int {
-	action := actions.NewAction(key, 0)
-
-	dc.actionChan <- actions.GetAction{Action: action} // 使用 get action
-	return (<-action.ReadChan).(int)
+// 绑定单个 Command
+func (data *Data) Bind(key string, command contracts.ExecuteAble) contracts.DataCenter {
+	data.commands[key] = command
+	return data
 }
 
-// 自增
-func (dc DataCenter) Incr(key string, num int) int {
-	action := actions.NewAction(key, num)
+// 调用命令
+func (data *Data) Call(command string, key string, arg int) chan interface{} {
+	ability, ok := data.commands[command]
 
-	dc.actionChan <- actions.IncrAction{Action: action} // 使用自增 action
-	return (<-action.ReadChan).(int)
+	if ok {
+		ch := make(chan interface{})
+		data.commandChan <- contracts.CommandAction{
+			Key:      key,
+			Arg:      arg,
+			Command:  ability,
+			BackChan: ch,
+			Data:     data.data,
+		}
+		return ch
+	}
+
+	return nil
 }
-
-// ... 更多 action 绑定
 
 // new 一个数据中心
-func NewData() DataCenter {
-	return DataCenter{
-		actionChan:  make(chan contracts.ActionAbility),
+func NewData() contracts.DataCenter {
+	return (&Data{
+		commandChan: make(chan contracts.CommandAction),
 		data:        contracts.DataMap{},
-		savable:     "", // 默认不开启持久化
+		savable:     nil, // 默认不开启持久化
 		savableChan: nil,
-		savableLock: new(sync.RWMutex),
-	}
+		Lock:        new(sync.RWMutex),
+	}).Commands(map[string]contracts.ExecuteAble{
+		commands.DELETE_COMMAND:  commands.DeleteCommand{},
+		commands.GET_COMMAND:     commands.GetCommand{},
+		commands.EXISTS_COMMAND:  commands.ExistsCommand{},
+		commands.INCR_COMMAND:    commands.IncrCommand{},
+		commands.SAVE_COMMAND:    commands.SaveCommand{},
+		commands.SAVE_NX_COMMAND: commands.SaveNxCommand{},
+	})
 }
 
 // 开始监听
-func (data DataCenter) Start() {
+func (data Data) WriteLock() *sync.RWMutex {
+	return data.Lock
+}
+
+func (data Data) Start() {
 	go func() {
-		for action := range data.actionChan {
-			if action.IsWrite() && data.savableChan != nil { // 写入操作的话，可能需要持久化
-				data.savableLock.Lock()
-				action.Handle(data.data)
-				data.savableLock.Unlock()
+		for action := range data.commandChan {
+			if action.Command.IsWrite() && data.savableChan != nil { // 写入操作的话，可能需要持久化
+				data.WriteLock().Lock()
+				action.Command.Execute(data.data, action.Key, action.Arg, action.BackChan)
+				data.WriteLock().Unlock()
 
 				data.savableChan <- action
 			} else {
-				action.Handle(data.data)
+				action.Command.Execute(data.data, action.Key, action.Arg, action.BackChan)
 			}
-			// 思考：非持久化情况下是否需要加个读写锁 ？
+			// todo: 思考：非持久化情况下是否需要加个读写锁 ？
 		}
 	}()
+}
+
+func (data *Data) GetDataMap() *contracts.DataMap {
+	return &data.data
 }
 
 /**
@@ -80,34 +102,9 @@ func (data DataCenter) Start() {
 
 	以下是持久化数据的伪代码
 */
-func (data *DataCenter) Savable(method string) {
-
-	data.savable = method
-	data.savableChan = make(chan contracts.ActionAbility)
-
-	// 开启协程监听持久化通道
-	go func() {
-		for range data.savableChan {
-			if method == "规则1" {
-				/**
-				0. 根据持久化规则判断是否满足持久化条件，若满足则往下执行
-				1. 使用读写锁锁住写操作
-				2. 复制一个 data map
-				3. 解开读写锁
-				4. 把复制好的 data map 里面的数据序列化成字符串写入指定文件中
-				*/
-			} else if method == "规则2" {
-				/**
-				0. 根据持久化规则判断是否满足持久化条件，若满足则往下执行
-				1. 把新的 action 写入缓存取，没隔一定时间把缓存取的日志写入文件/或者实时写入文件(影响性能)
-				2. 检查日志文件是否达到需要重新的规模，若满足，则执行重写
-				*/
-			} else if method == "规则3" {
-				/**
-				规则3 略
-				*/
-			}
-		}
-	}()
-
+func (data *Data) Savable(savable contracts.Savable) {
+	data.savable = savable
+	data.savableChan = make(chan contracts.CommandAction)
+	data.savable.Init()
+	data.savable.Run(data.savableChan)
 }
