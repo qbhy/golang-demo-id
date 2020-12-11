@@ -27,6 +27,12 @@ func (remix Remix) Run(actionChan chan contracts.CommandAction) {
 	4. 把复制好的 data map 里面的数据序列化成字符串写入指定文件中
 	*/
 	// todo: 待实现
+	go func() {
+		for action := range actionChan {
+			fmt.Println("action", action.Command.Id())
+			//rdb.Save(action.Data, action)
+		}
+	}()
 }
 
 func (remix Remix) Save(data contracts.DataMap, action contracts.CommandAction) {

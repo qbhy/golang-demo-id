@@ -5,17 +5,13 @@ import (
 	"fmt"
 	"id/core/contracts"
 	"id/util"
-	"io"
 	"os"
+	"strings"
 )
 
 type Rdb struct {
 	Path string // 文件目录
 	file *os.File
-}
-
-func New() Rdb {
-	return Rdb{}
 }
 
 func (rdb Rdb) Init() {
@@ -31,6 +27,12 @@ func (rdb Rdb) Run(actionChan chan contracts.CommandAction) {
 	4. 把复制好的 data map 里面的数据序列化成字符串写入指定文件中
 	*/
 	// todo: 待实现
+	go func() {
+		for action := range actionChan {
+			fmt.Println("action", action.Command.Id())
+			//rdb.Save(action.Data, action)
+		}
+	}()
 }
 
 func (rdb Rdb) Save(data contracts.DataMap, action contracts.CommandAction) {
@@ -48,11 +50,19 @@ func (rdb Rdb) Save(data contracts.DataMap, action contracts.CommandAction) {
 
 func (rdb *Rdb) Recovery(center contracts.DataCenter) {
 	br := bufio.NewReader(rdb.file)
+	center.SetRecovering(true)
+	data := *center.GetDataMap()
 	for {
-		a, _, c := br.ReadLine()
-		if c == io.EOF {
+		line, _, c := br.ReadLine()
+
+		if c != nil {
 			break
 		}
-		fmt.Println(string(a))
+
+		actionArr := strings.Split(string(line), ",")
+		if len(actionArr) == 2 { // 长度不对说明数据有问题
+			data[actionArr[0]] = util.StrToInt(actionArr[1])
+		}
 	}
+	center.SetRecovering(false)
 }

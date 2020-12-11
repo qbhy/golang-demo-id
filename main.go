@@ -51,8 +51,8 @@ func main() {
 	// 开启操作管道协程
 	data.Start()
 
+	gin.SetMode(os.Getenv("GIN_MODE"))
 	router := gin.Default()
-
 
 	router.GET("/", func(context *gin.Context) {
 		context.String(http.StatusOK, "hello world")

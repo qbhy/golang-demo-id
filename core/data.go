@@ -82,9 +82,7 @@ func (data Data) Start() {
 	go func() {
 		for action := range data.commandChan {
 			if action.Command.IsWrite() && data.savableChan != nil { // 写入操作的话，可能需要持久化
-				data.WriteLock().Lock()
 				action.Command.Execute(data.data, action.Key, action.Arg, action.BackChan)
-				data.WriteLock().Unlock()
 
 				data.savableChan <- action
 			} else {
